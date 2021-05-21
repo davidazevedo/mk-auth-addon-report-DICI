@@ -194,10 +194,14 @@ if (!isset($_SESSION['mka_logado'])) exit('Acesso negado...');
     and STR_TO_DATE(a.cadastro, '%d/%m/%Y') <= STR_TO_DATE('30/" . $cli_mes . "/" . $cli_ano . "', '%d/%m/%Y')
     group by a.cidade_ibge, a.tipo_pessoa,TIPO_ATENDIMENTO, tipo_meio, p.veldown");
 
+
+
+                        $getplano = $pdo->query("select * from sis_plano");
+
                         $result  = $pdo->query("
     select prov.cnpj CNPJ, " . $cli_ano . " ANO, " . $cli_mes . " MES, a.cidade_ibge COD_IBGE, IF(a.tipo_pessoa=3,'PF','PJ') TIPO_CLIENTE, if(instr(a.tags,'rural') <> 0, 'RURAL', 'URBANO') TIPO_ATENDIMENTO,
     if(p.tecnologia = 'H', 'fibra', if(p.tecnologia='k' or p.tecnologia='D' or p.tecnologia='C','radio', if(p.tecnologia = 'G', 'satelite', if(p.tecnologia = 'M', 'cabo_metalico', if(p.tecnologia = 'J', 'cabo_coaxial', 'cabo_metalico'))))) TIPO_MEIO,
-    'INTERNET' TIPO_PRODUTO, 'ETHERNET' TIPO_TECNOLOGIA, format(p.veldown,0) VELOCIDADE, count(*) QT_ACESSOS 
+    'INTERNET' TIPO_PRODUTO, 'ETHERNET' TIPO_TECNOLOGIA, format(p.veldown,0) VELOCIDADE, count(*) QT_ACESSOS, format(p.valor,0)  VALOR
     from sis_provedor prov, sis_cliente a inner join sis_plano p on a.plano = p.nome 
     where a.cli_ativado = " . $cli_ativado . "
     and a.bloqueado =" . $cli_bloqueado . "
@@ -209,25 +213,27 @@ if (!isset($_SESSION['mka_logado'])) exit('Acesso negado...');
     group by a.cidade_ibge, a.tipo_pessoa, TIPO_ATENDIMENTO, tipo_meio, p.veldown");
 
                         $resultSucesso  = $pdo->query("
-    select a.nome NOME
-    from sis_cliente a
-    where a.cli_ativado = " . $cli_ativado . "
-    and a.bloqueado =" . $cli_bloqueado . "
-    and " . $cli_gerarSici . "
-    and " . $cli_gerarNF . "
-    and a.cidade_ibge is not null
-    and a.plano is not null
-    and STR_TO_DATE(a.cadastro, '%d/%m/%Y') <= STR_TO_DATE('30/" . $cli_mes . "/" . $cli_ano . "', '%d/%m/%Y')
-    order by a.nome");
+                                                        select a.nome NOME
+                                                        from sis_cliente a
+                                                        where a.cli_ativado = " . $cli_ativado . "
+                                                        and a.bloqueado =" . $cli_bloqueado . "
+                                                        and " . $cli_gerarSici . "
+                                                        and " . $cli_gerarNF . "
+                                                        and a.cidade_ibge is not null
+                                                        and a.plano is not null
+                                                        and STR_TO_DATE(a.cadastro, '%d/%m/%Y') <= STR_TO_DATE('30/" . $cli_mes . "/" . $cli_ano . "', '%d/%m/%Y')
+                                                        order by a.nome");
 
                     ?>
                         <br />
+
 
                         Relatorio Gerado - Mes de Referencia = <?php echo $cli_mes; ?> e Ano= <?php echo $cli_ano; ?>
                         <div style="display: grid;">
                             <table class="table table-dark table-striped">
                                 <thead>
                                     <tr class="tab_th">
+                                        <th>ID</th>
                                         <th>CNPJ</th>
                                         <th>ANO</th>
                                         <th>MES</th>
@@ -239,14 +245,26 @@ if (!isset($_SESSION['mka_logado'])) exit('Acesso negado...');
                                         <th>TIPO_TECNOLOGIA</th>
                                         <th>VELOCIDADE</th>
                                         <th>QT_ACESSOS</th>
+                                        <th>VALOR</th>
+                                        <th>FAT BRUTO</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php
+                                    $count = $result->rowCount();
+                                    $varTotalAcessos = 0;
+                                    $varBandaMedia = 0;
+                                    $indexCount = 0;
+                                    $TotalBruto =0;
 
                                     foreach ($result as $row) {
+
+                                        $varTotalAcessos = $varTotalAcessos + $row['QT_ACESSOS'];
+                                        $varBandaMedia = $varBandaMedia + $row['VELOCIDADE'];
+                                        $TotalBruto = $TotalBruto + floatval($row['VALOR']*$row['QT_ACESSOS']);
                                     ?>
                                         <tr>
+                                            <td><?php echo $indexCount++ ?></td>
                                             <td><?php echo $row['CNPJ']; ?></td>
                                             <td><?php echo $row['ANO']; ?></td>
                                             <td><?php echo $row['MES']; ?></td>
@@ -256,14 +274,38 @@ if (!isset($_SESSION['mka_logado'])) exit('Acesso negado...');
                                             <td><?php echo $row['TIPO_MEIO']; ?></td>
                                             <td><?php echo $row['TIPO_PRODUTO']; ?></td>
                                             <td><?php echo $row['TIPO_TECNOLOGIA']; ?></td>
-                                            <td><?php echo $row['VELOCIDADE']; ?></td>
+                                            <td><?php echo round($row['VELOCIDADE']); ?>MB</td>
                                             <td><?php echo $row['QT_ACESSOS']; ?></td>
+                                            <td><?php echo $row['VALOR']; ?></td>
+                                            <td><?php 
+                                                     $total = floatval($row['VALOR']*$row['QT_ACESSOS']);
+                                                     echo $total;  ?></td>
                                         </tr>
                                     <?php }
 
                                     ?>
                                 </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td>Total de Linhas <?php echo $indexCount ?></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td>Media <?php echo round($varBandaMedia / $count, 0) ?>MB</td>
+                                        <td> <?php echo $varTotalAcessos; ?></td>
+                                        <td><?php echo  $TotalBruto; ?>  </td>
+                                        
+                                    </tr>
+                                </tfoot>
                             </table>
+
                         </div>
                         <?php
 
